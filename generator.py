@@ -227,60 +227,60 @@ if __name__ == '__main__':
     index_path = './index.html'
 
     flask_1 = ContainingSegment(
-        HtmlSegment("day_1/landing.html"),
-        HtmlSegment("day_1/descriptionflask.html"),
-        HtmlSegment("day_1/whouses.html"),
-        CodeSegment("day_1/setup.py", "La mise en place", "1-6|8-15"),
-        CodeSegment("day_1/routes.py", "Les routes", "4-7|9-15|17-20|22-25|27-30"),
-        CodeSegment("day_1/request_object.py", "L'objet requête", "1-3|7-17"),
-        CodeSegment("day_1/responses.py", "Les réponses", "6-17|19-29|31-38|40-41"),
-        HtmlSegment("day_1/exercise.html"),
-        CodeSegment("day_1/error_handling.py", "La gestion des erreurs", "4-16"),
+        HtmlSegment("landing.html"),
+        HtmlSegment("descriptionflask.html"),
+        HtmlSegment("whouses.html"),
+        CodeSegment("setup.py", "La mise en place", "1-6|8-15"),
+        CodeSegment("routes.py", "Les routes", "4-7|9-15|17-20|22-25|27-30"),
+        CodeSegment("request_object.py", "L'objet requête", "1-3|7-17"),
+        CodeSegment("responses.py", "Les réponses", "6-17|19-29|31-38|40-41"),
+        HtmlSegment("exercise.html"),
+        CodeSegment("error_handling.py", "La gestion des erreurs", "4-16"),
 
         chapter_path="flask_1/"
     )
 
     '''
     flask_2 = ContainingSegment(
-        HtmlSegment("day_2/layout.html"),
-        CodeSegment("day_2/factory.py", "La fabrique de l'app", "1-7|9-22"),
-        CodeSegment("day_2/blueprint.py", "Le blueprint", "1-11|14-20"),
-        HtmlSegment("day_2/mini-exercise.html"),
-        CodeSegment("day_2/database.py", "La base de données", "1-5|8-16|19-23|27-44|48-57|60-65|68-70|74-80"),
-        CodeSegment("day_2/base.html", "Le gabarit HTML de base", "1|3-12|18-24|25-32|37-45"),
-        CodeSegment("day_2/register.html", "Le formulaire d'enregistrement", "3|5-7|9-19"),
-        CodeSegment("day_2/login.html", "Le formulaire de login", "3|5-7|9-19"),
+        HtmlSegment("layout.html"),
+        CodeSegment("factory.py", "La fabrique de l'app", "1-7|9-22"),
+        CodeSegment("blueprint.py", "Le blueprint", "1-11|14-20"),
+        HtmlSegment("mini-exercise.html"),
+        CodeSegment("database.py", "La base de données", "1-5|8-16|19-23|27-44|48-57|60-65|68-70|74-80"),
+        CodeSegment("base.html", "Le gabarit HTML de base", "1|3-12|18-24|25-32|37-45"),
+        CodeSegment("register.html", "Le formulaire d'enregistrement", "3|5-7|9-19"),
+        CodeSegment("login.html", "Le formulaire de login", "3|5-7|9-19"),
 
         chapter_path="flask_2/"
     )
 
     flask_3 = ContainingSegment(
-        CodeSegment("day_3/auth.py", "L'authentification", "1-6|9-14|17-22|24-26|28-36|38-52|54-56|58-62|64-65|67-71|74-79|81-83|85-90|92-100|102-111|113-114|116-120|123-127|129-131|133-138|141-147|150-153|155-157|159-164|166-168|170-171|173-177|181-186"),
-        HtmlSegment("day_3/mini-exercise.html"),
-        CodeSegment("day_3/database.py", "La base de données II", "1-6|10-20|22-26|29-35|37-39|41-47|49-57|59-62|64-65|67-71|74-85|87-97|99-100|103-113|115-117|119-125|127-134|136-139|141-142|144-149|152-162|164-167"),
-        CodeSegment("day_3/index.html", "La liste des articles", "1-2|4-12|14-16|18-24|25-33|36|39-43"),
-        CodeSegment("day_3/create.html", "Le form de création", "1-2|4-6|8-9|10-14|16-20|22|23-24"),
-        CodeSegment("day_3/edit.html", "La form de édition", "1-2|4-8|10-11|12-18|20-27|29|34-38|40-41|42-43"),
-        HtmlSegment("day_3/mini-exercise-2.html"),
+        CodeSegment("auth.py", "L'authentification", "1-6|9-14|17-22|24-26|28-36|38-52|54-56|58-62|64-65|67-71|74-79|81-83|85-90|92-100|102-111|113-114|116-120|123-127|129-131|133-138|141-147|150-153|155-157|159-164|166-168|170-171|173-177|181-186"),
+        HtmlSegment("mini-exercise.html"),
+        CodeSegment("database.py", "La base de données II", "1-6|10-20|22-26|29-35|37-39|41-47|49-57|59-62|64-65|67-71|74-85|87-97|99-100|103-113|115-117|119-125|127-134|136-139|141-142|144-149|152-162|164-167"),
+        CodeSegment("index.html", "La liste des articles", "1-2|4-12|14-16|18-24|25-33|36|39-43"),
+        CodeSegment("create.html", "Le form de création", "1-2|4-6|8-9|10-14|16-20|22|23-24"),
+        CodeSegment("edit.html", "La form de édition", "1-2|4-8|10-11|12-18|20-27|29|34-38|40-41|42-43"),
+        HtmlSegment("mini-exercise-2.html"),
     
         chapter_path="flask_3/"
     )
 
     flask_4 = ContainingSegment(
-        HtmlSegment("day_4/landing.html"),
+        HtmlSegment("landing.html"),
 
-        CodeSegment("day_4/jwt.py", "Les JSON Web Tokens", "1|5-17|21-27|30-35|38-40|42-45|47-52|54-65|67-75|77-82|85-89|90-95|97-105"),
-        HtmlSegment("day_4/mini-exercise.html"),
-        CodeSegment("day_4/env.py", "Le fichier .env", "1|5-9|13-16|18-27"),
-        CodeSegment("day_4/install.py", "Rendre l'app installable", "1|5|8-19|23-29|33-37"),
+        CodeSegment("jwt.py", "Les JSON Web Tokens", "1|5-17|21-27|30-35|38-40|42-45|47-52|54-65|67-75|77-82|85-89|90-95|97-105"),
+        HtmlSegment("mini-exercise.html"),
+        CodeSegment("env.py", "Le fichier .env", "1|5-9|13-16|18-27"),
+        CodeSegment("install.py", "Rendre l'app installable", "1|5|8-19|23-29|33-37"),
         
         chapter_path="flask_4/"
     )
 
     flask_5 = ContainingSegment(
-        CodeSegment("day_5/emails.py", "Les emails de confirmation", "1|5-14|18-20|22-25|27-33|35-36|40-47|51-53|56-58|60-63|65-69|72-74|76-79|81-87|89-91|93-94|98-99|102-106|108-109|111-115|117-122|124-128|130-137|139-142|144-147|150-155|157-160|162-167|169-173|175-176|178-179|181-186"),
-        CodeSegment("day_5/sql_alchemy.py", "Le ORM SQLAlchemy", "1|5-13|16-17|20-33|37-44|47-55|58-65|67-76|78-86|88-96|98-107"),
-        HtmlSegment("day_5/the_end.html"),
+        CodeSegment("emails.py", "Les emails de confirmation", "1|5-14|18-20|22-25|27-33|35-36|40-47|51-53|56-58|60-63|65-69|72-74|76-79|81-87|89-91|93-94|98-99|102-106|108-109|111-115|117-122|124-128|130-137|139-142|144-147|150-155|157-160|162-167|169-173|175-176|178-179|181-186"),
+        CodeSegment("sql_alchemy.py", "Le ORM SQLAlchemy", "1|5-13|16-17|20-33|37-44|47-55|58-65|67-76|78-86|88-96|98-107"),
+        HtmlSegment("the_end.html"),
 
         chapter_path="flask_5/"
     )
