@@ -240,7 +240,6 @@ if __name__ == '__main__':
         chapter_path="flask_1/"
     )
 
-    '''
     flask_2 = ContainingSegment(
         HtmlSegment("layout.html"),
         CodeSegment("factory.py", "La fabrique de l'app", "1-7|9-22"),
@@ -254,6 +253,7 @@ if __name__ == '__main__':
         chapter_path="flask_2/"
     )
 
+    '''
     flask_3 = ContainingSegment(
         CodeSegment("auth.py", "L'authentification", "1-6|9-14|17-22|24-26|28-36|38-52|54-56|58-62|64-65|67-71|74-79|81-83|85-90|92-100|102-111|113-114|116-120|123-127|129-131|133-138|141-147|150-153|155-157|159-164|166-168|170-171|173-177|181-186"),
         HtmlSegment("mini-exercise.html"),
