@@ -280,6 +280,322 @@
 
         </section>
 
+
+        <section>
+
+            <section>
+                <p>Le plan du projet</p>
+
+                <p><small>Jusqu'à présent, c'étaient les bases…
+                <br>… c'est le moment de se compliquer la vie !
+                <br>C'est ici que nous irons bientôt :</small></p>
+
+                <pre>
+                project/
+                ├── __init__.py
+                ├── database/
+                │   ├── db.py
+                │   └── schema.sql
+                ├── routes/
+                │   ├── auth.py
+                │   └── articles.py
+                ├── templates/
+                │   ├── base.html
+                │   ├── auth/
+                │   │   ├── login.html
+                │   │   └── register.html
+                │   └── articles/
+                │       ├── create.html
+                │       ├── index.html
+                │       └── update.html
+                └── static/ style.css
+                </pre>
+            </section>
+
+
+            <section>
+            <h3>La fabrique de l'app</h3>
+            <pre><code class='language-python'             data-trim data-noescape             data-line-numbers='1-7|9-22'>
+        
+        
+                # ./__init__.py
+
+                import os
+                import flask
+
+                def create_app():
+                    app = flask.Flask(__name__)
+
+                    # Configuration de l'app
+                    app.config.from_mapping(
+                        SECRET_KEY='utilisée_pour_le_cryptage',
+                        DATABASE=os.path.join(
+                            app.instance_path,
+                            'database',
+                            'project.sqlite'
+                        ) # Génère la path pour la BDD
+                    )
+
+                    # Ici on mettra nos routes
+                    ...
+
+                    return app
+        
+                    </code></pre>
+            </section>
+
+
+            <section>
+            <h3>Le blueprint</h3>
+            <pre><code class='language-python'             data-trim data-noescape             data-line-numbers='1-11|14-20'>
+        
+        
+                # ./routes/articles.py
+                import flask
+                blueprint = flask.Blueprint(
+                    'articles',             # Nom
+                    __name__,               # Nom pour l'import
+                    url_prefix='/articles'
+                )
+
+                @blueprint.route('/new') # == '/articles/new'
+                def new_article():
+                    '''🤖'''
+
+
+                # ./__init__.py
+                def create_app():
+                    ...
+                    # On peut ajouter nos routes sous forme de blueprints
+                    from routes import articles # 🆕
+                    app.register_blueprint(articles.blueprint) # 🆕
+                    ...
+        
+                    </code></pre>
+            </section>
+
+
+            <section>
+                <p>C'est parti !
+                <br><small>Reconvertissez la structure du projet</small></p>
+
+                <p><small>Puis créez le blueprint "auth" avec les routes suivantes :</small></p>
+
+                <ul>
+                    <li>S'enregistrer</li>
+                    <li>Effectuer le login</li>
+                </ul>
+
+                <p><small>Pour les réponses, vous pouvez utiliser la méthode JSON et renvoyer des messages positifs pour les opérations effectuées, même si rien ne se passe réellement !</small></p>
+            </section>
+
+
+            <section>
+            <h3>La base de données</h3>
+            <pre><code class='language-python'             data-trim data-noescape             data-line-numbers='1-5|8-16|19-23|27-44|48-57|60-65|68-70|74-80'>
+        
+        
+                #./database/db.py
+                import sqlite3
+                import click
+                import flask
+                from flask.cli import with_appcontext
+
+
+                def get_db():
+                    if 'db' not in flask.g: # "g" est la var de session
+                        flask.g.db = sqlite3.connect(
+                            flask.current_app.config['DATABASE'],
+                            detect_types=sqlite3.PARSE_DECLTYPES
+                        )
+                        flask.g.db.row_factory = sqlite3.Row
+
+                    return flask.g.db
+
+
+                def close_db(e=None):
+                    db = flask.g.pop('db', None) # Détache la BDD
+
+                    if db is not None:
+                        db.close()
+
+
+
+                #./database/schema.sql
+                DROP TABLE IF EXISTS user;
+                DROP TABLE IF EXISTS article;
+
+                CREATE TABLE user (
+                  id INTEGER PRIMARY KEY AUTOINCREMENT,
+                  username TEXT UNIQUE NOT NULL,
+                  password TEXT NOT NULL
+                );
+
+                CREATE TABLE article (
+                  id INTEGER PRIMARY KEY AUTOINCREMENT,
+                  author_id INTEGER NOT NULL,
+                  created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                  title TEXT NOT NULL,
+                  body TEXT NOT NULL,
+                  FOREIGN KEY (author_id) REFERENCES user (id)
+                );
+
+
+
+                #./database/db.py
+                def init_db():
+                    db = get_db()
+
+                    with flask.current_app.open_resource(
+                        'database/schema.sql'
+                    ) as schema:
+                        db.executescript(
+                            schema.read().decode('utf8')
+                        )
+
+
+                @click.command('init-db') # $ flask init-db
+                @with_appcontext
+                def init_db_command():
+                    """Efface et récrée la BDD"""
+                    init_db()
+                    click.echo('BDD initialisée')
+
+
+                def init_app(app):
+                    app.teardown_appcontext(close_db)
+                    app.cli.add_command(init_db_command)
+
+
+
+                #./__init__.py
+                def create_app():
+                    ...
+                    # On peut initialiser la BDD dans la factory
+                    from database import db
+                    db.init_app(app)
+                    ...
+        
+                    </code></pre>
+            </section>
+
+
+            <section>
+            <h3>Le gabarit HTML de base</h3>
+            <pre><code class='language-html'             data-trim data-noescape             data-line-numbers='1|3-12|18-24|25-32|37-45'>
+        
+        
+                &lt;!-- ./templates/base.html --&gt;
+                &lt;!doctype html&gt;
+                &lt;head&gt;
+                  &lt;title&gt;{% block title %}{% endblock %} - Flaskr&lt;/title&gt;
+                  &lt;link 
+                    rel="stylesheet"
+                    href="{{url_for(
+                      'static',
+                      filename='style.css'
+                    ) }}"
+                  &gt;
+                &lt;/head&gt;
+
+                &lt;body&gt;
+                  &lt;nav&gt;
+                    &lt;h1&gt;Flaskr&lt;/h1&gt;
+                    &lt;ul&gt;
+                      {% if g.user %}
+                        &lt;li&gt;&lt;span&gt;
+                          {{ g.user['username'] }}
+                        &lt;/span&gt;&lt;/li&gt;
+                        &lt;li&gt;&lt;a href="{{ url_for('auth.logout') }}"&gt;
+                          Log Out
+                        &lt;/a&gt;&lt;/li&gt;
+                      {% else %}
+                        &lt;li&gt;&lt;a href="{{ url_for('auth.register') }}"&gt;
+                          Register
+                        &lt;/a&gt;&lt;/li&gt;
+                        &lt;li&gt;&lt;a href="{{ url_for('auth.login') }}"&gt;
+                          Log In
+                        &lt;/a&gt;&lt;/li&gt;
+                      {% endif %}
+                    &lt;/ul&gt;
+                  &lt;/nav&gt;
+
+                  &lt;section class="content"&gt;
+                    &lt;header&gt;
+                      {% block header %}{% endblock %}
+                    &lt;/header&gt;
+
+                    {% for message in get_flashed_messages() %}
+                      &lt;div class="flash"&gt;{{ message }}&lt;/div&gt;
+                    {% endfor %}
+
+                    {% block content %}{% endblock %}
+                  &lt;/section&gt;
+                &lt;/body&gt;
+        
+                    </code></pre>
+            </section>
+
+
+            <section>
+            <h3>Le formulaire d'enregistrement</h3>
+            <pre><code class='language-html'             data-trim data-noescape             data-line-numbers='3|5-7|9-19'>
+        
+        
+                &lt;!-- ./templates/auth/register.html --&gt;
+
+                {% extends 'base.html' %}
+
+                {% block header %}
+                  &lt;h1&gt;{% block title %}Register{% endblock %}&lt;/h1&gt;
+                {% endblock %}
+
+                {% block content %}
+                  &lt;form method="post"&gt;
+                    &lt;label&gt;Username
+                      &lt;input name="username" required&gt;
+                    &lt;/label&gt;
+                    &lt;label&gt;Password
+                      &lt;input type="password" name="password" required&gt;
+                    &lt;/label&gt;
+                    &lt;input type="submit" value="Register"&gt;
+                  &lt;/form&gt;
+                {% endblock %}
+        
+                    </code></pre>
+            </section>
+
+
+            <section>
+            <h3>Le formulaire de login</h3>
+            <pre><code class='language-html'             data-trim data-noescape             data-line-numbers='3|5-7|9-19'>
+        
+        
+                &lt;!-- ./templates/auth/login.html --&gt;
+
+                {% extends 'base.html' %}
+
+                {% block header %}
+                  &lt;h1&gt;{% block title %}Log In{% endblock %}&lt;/h1&gt;
+                {% endblock %}
+
+                {% block content %}
+                  &lt;form method="post"&gt;
+                    &lt;label&gt;Username
+                      &lt;input name="username" required&gt;
+                    &lt;/label&gt;
+                    &lt;label&gt;Password
+                      &lt;input type="password" name="password" required&gt;
+                    &lt;/label&gt;
+                    &lt;input type="submit" value="Log In"&gt;
+                  &lt;/form&gt;
+                {% endblock %}
+        
+                    </code></pre>
+            </section>
+
+        </section>
+
     </div>
     	</div>
         <script src="dist/reveal.js"></script>

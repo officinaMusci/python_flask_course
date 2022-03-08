@@ -288,7 +288,7 @@ if __name__ == '__main__':
 
     template = ContainingSegment(
         flask_1,
-        #flask_2,
+        flask_2,
         #flask_3,
         #flask_4,
         #flask_5
