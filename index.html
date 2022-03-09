@@ -330,7 +330,7 @@
                     app.config.from_mapping(
                         SECRET_KEY='utilisée_pour_le_cryptage',
                         DATABASE=os.path.join(
-                            app.instance_path,
+                            os.path.dirname(os.path.realpath(__file__)),
                             'database',
                             'project.sqlite'
                         ) # Génère la path pour la BDD
@@ -592,6 +592,551 @@
                 {% endblock %}
         
                     </code></pre>
+            </section>
+
+        </section>
+
+
+        <section>
+
+            <section>
+            <h3>L'authentification</h3>
+            <pre><code class='language-python'             data-trim data-noescape             data-line-numbers='1-6|9-14|17-22|24-26|28-36|38-52|54-56|58-62|64-65|67-71|74-79|81-83|85-90|92-100|102-111|113-114|116-120|123-127|129-131|133-138|141-147|150-153|155-157|159-164|166-168|170-171|173-177|181-186'>
+        
+        
+                # ./routes/auth.py
+                import functools
+                import flask
+                from werkzeug import security
+
+                from database.db import get_db
+
+
+                # On déclare notre BP
+                blueprint = flask.Blueprint(
+                    'auth',
+                    __name__,
+                    url_prefix='/auth'
+                )
+
+
+                # Route pour le form d'enregistrement et son submit
+                @blueprint.route('/register', methods=['GET', 'POST'])
+                def register():
+
+                    # Si "POST", il s'agit du submit
+                    if flask.request.method == 'POST':
+        
+                        # 1. On récupère les data
+                        username = flask.request.form['username']
+                        password = flask.request.form['password']
+        
+                        # 2. On contrôle les data
+                        error = None
+                        if not username:
+                            error = 'Le nom utilisateur est requis'
+                        elif not password:
+                            error = 'Le mot de passe est requis'
+
+                        # On continue seulement si les data sont là
+                        if error is None:
+
+                            # 3. On ouvre la BDD et on enregistre l'user
+                            db = get_db()
+                            try:
+                                db.execute(
+                                    "INSERT INTO user\
+                                        (username, password)\
+                                        VALUES (?, ?)",
+                                    (
+                                        username,
+                                        security.generate_password_hash(
+                                            password
+                                        )
+                                    ),
+                                )
+                                db.commit()
+
+                            # 3.b On ajoute une erreur si il existe déjà
+                            except db.IntegrityError:
+                                error = f"{username} existe déjà"
+
+                            # 4. Si tout va bien, on révient au login
+                            else:
+                                return flask.redirect(
+                                    flask.url_for("auth.login")
+                                )
+
+                        # 5. Sinon, on ajoute l'erreur au flash bag
+                        flask.flash(error)
+
+                    # On affiche le form si "GET"
+                    # ou si on a des erreurs à afficher
+                    return flask.render_template(
+                        'auth/register.html'
+                    )
+
+
+                # Route pour le form de login et son submit
+                @blueprint.route('/login', methods=['GET', 'POST'])
+                def login():
+
+                    # Si "POST", il s'agit du submit
+                    if flask.request.method == 'POST':
+            
+                        # 1. On récupère les data
+                        username = flask.request.form['username']
+                        password = flask.request.form['password']
+
+                        # 2. On ouvre la BDD et on cherche l'user
+                        db = get_db()
+                        user = db.execute(
+                            'SELECT * FROM user WHERE username = ?',
+                            (username,)
+                        ).fetchone()
+
+                        # 3. On contrôle les data
+                        error = None
+                        if (
+                            user is None or not flask.check_password_hash(
+                                user['password'],
+                                password
+                            )
+                        ):
+                            error = 'Identifiants non valides'
+
+                        # 4. Si tout va bien, on nettoye la session,
+                        # on enregistre l'user (id) en session
+                        # et va à l'index
+                        if error is None:
+                            flask.session.clear()
+                            flask.session['user_id'] = user['id']
+            
+                            return flask.redirect(
+                                flask.url_for('index')
+                            )
+
+                        # 5. Sinon, on ajoute l'erreur au flash bag
+                        flask.flash(error)
+    
+                    # On affiche le form si "GET"
+                    # ou si on a des erreurs à afficher
+                    return flask.render_template(
+                        'auth/login.html'
+                    )
+
+
+                # On crée l'objet user pour chaque request
+                @blueprint.before_app_request
+                def load_logged_in_user():
+                    # 1. On récupère l'ID depuis la session
+                    user_id = flask.session.get('user_id')
+
+                    # 2.a Si il n'existe pas, ce sera None
+                    if user_id is None:
+                        flask.g.user = None
+
+                    # 2.b Si il existe, on le récupère depuis la BDD
+                    else:
+                        flask.g.user = get_db().execute(
+                            'SELECT * FROM user WHERE id = ?',
+                            (user_id,)
+                        ).fetchone()
+
+
+                # Au logout, on nettoye et on redirige
+                @blueprint.route('/logout')
+                def logout():
+                    flask.session.clear()
+                    return flask.redirect(
+                        flask.url_for('index')
+                    )
+
+
+                # 🆕 Notre premier décorateur !
+                # ici on en crée un pour protéger les pages
+
+                def login_required(view):           # (view = la fonction)
+    
+                    @functools.wraps(view)          # On l'enveloppe
+                    def wrapped_view(**kwargs):     # avec une function
+                                                    # qui prend les kwargs
+
+                        # Si la view est ouverte par un user
+                        # non loggué, on le redirige ver le login
+                        if flask.g.user is None:
+                            return flask.redirect(
+                                flask.url_for('auth.login')
+                            )
+
+                        # Sinon on lance la bonne fonction
+                        # avec ses kwargs originaux
+                        return view(**kwargs)
+
+                    # On retourne la fonction enveloppée
+                    return wrapped_view
+
+                # Et voilà comment ce sera utilisé
+                @blueprint.route('/profile')
+                @login_required # 🆕
+                def profile():
+                    '''🤖'''
+
+
+
+                # ./__init__.py
+                def create_app():
+                    ...
+                    from routes import auth
+                    app.register_blueprint(auth.blueprint)
+                    ...
+        
+                    </code></pre>
+            </section>
+
+
+            <section>
+                <p>C'est parti !
+                <br><small>On remet la main à la pâte</small></p>
+
+                <p><small>L'authentication</small></p>
+                <ol>
+                    <li>Ajoutez les fonctions d'auth</li>
+                    <li>Ajoutez les templates HTML d'auth</li>
+                    <li>Ajoutez le décorateur de protection aux views des articles</li>
+                </ol>
+
+                <p><small><em><a href="#/10/9">Structure du projet</a></em></small></p>
+            </section>
+
+
+            <section>
+            <h3>La base de données II</h3>
+            <pre><code class='language-python'             data-trim data-noescape             data-line-numbers='1-6|10-20|22-26|29-35|37-39|41-47|49-57|59-62|64-65|67-71|74-85|87-97|99-100|103-113|115-117|119-125|127-134|136-139|141-142|144-149|152-162|164-167'>
+        
+        
+                # ./routes/articles.py
+                import flask
+                from werkzeug import exceptions
+
+                from . import auth
+                from database.db import get_db
+
+                ...
+
+                # La route pour afficher tous les articles
+                @blueprint.route('/')
+                def index():
+                    db = get_db()
+                    articles = db.execute(
+                        'SELECT p.id, title, body, created,\
+                            author_id, username'
+                        ' FROM article p JOIN user u\
+                            ON p.author_id = u.id'
+                        ' ORDER BY created DESC'
+                    ).fetchall()
+
+                    # On affiche le template avec les articles
+                    return flask.render_template(
+                        'articles/index.html',
+                        articles=articles
+                    )
+
+
+                # La route pour créer un nouvel article
+                @blueprint.route('/create', methods=['GET', 'POST'])
+                @auth.login_required
+                def create():
+
+                    # Si "POST", il s'agit du submit
+                    if flask.request.method == 'POST':
+
+                        # 1. On récupère les data
+                        title = flask.request.form['title']
+                        body = flask.request.form['body']
+        
+                        # 2. On contrôle les data
+                        error = None
+                        if not title:
+                            error = 'Le titre est requis'
+
+                        # On continue seulement si les data sont là
+                        if error is None:
+
+                            # 3. On ouvre la BDD et on enregistre l'art.
+                            db = get_db()
+                            db.execute(
+                                'INSERT INTO article\
+                                    (title, body, author_id)'
+                                ' VALUES (?, ?, ?)',
+                                (title, body, flask.g.user['id'])
+                            )
+                            db.commit()
+
+                            # 4. Si tout va bien, on révient à la liste
+                            return flask.redirect(
+                                flask.url_for('articles.index')
+                            )
+
+                        # 5. Sinon, on ajoute l'erreur au flash bag
+                        flask.flash(error)
+
+                    # On affiche le form si "GET"
+                    # ou si on a des erreurs à afficher
+                    return flask.render_template(
+                        'articles/create.html'
+                    )
+
+
+                # On crée un "helper" pour obtenir un article
+                # Cela nous servira pour "update" et "delete"
+                def get_article(id, check_author=True):
+                    article = get_db().execute(
+                        'SELECT\
+                            p.id, title, body, created,\
+                            author_id, username'
+                        ' FROM article p JOIN user u\
+                            ON p.author_id = u.id'
+                        ' WHERE p.id=?',
+                        (id,)
+                    ).fetchone()
+
+                    # On peut lever des erreurs HTTP
+                    if article is None:
+                        exceptions.abort(
+                            404,
+                            f"l'article {id} n'existe pas"
+                        )
+    
+                    if check_author and (
+                        article['author_id'] != flask.g.user['id']
+                    ):
+                        exceptions.abort(403)
+
+                    # Si tout est ok, on retourne l'article
+                    return article
+
+
+                # La route pour mettre à jour un article
+                @blueprint.route(
+                    '/&lt;int:id&gt;/update',
+                    methods=['GET', 'POST']
+                )
+                @auth.login_required
+                def update(id):
+                    article = get_article(id)
+
+                    # Si "POST", il s'agit du submit
+                    if flask.request.method == 'POST':
+
+                        # 1. On récupère les data
+                        title = flask.request.form['title']
+                        body = flask.request.form['body']
+        
+                        # 2. On contrôle les data
+                        error = None
+                        if not title:
+                            error = 'Title is required.'
+
+                        # On continue seulement si les data sont là
+                        if error is None:
+
+                            # 3. On ouvre la BDD et on enregistre l'art.
+                            db = get_db()
+                            db.execute(
+                                'UPDATE article SET title=?, body=?'
+                                ' WHERE id=?',
+                                (title, body, id)
+                            )
+                            db.commit()
+            
+                            # 4. Si tout va bien, on révient à la liste
+                            return flask.redirect(
+                                flask.url_for('articles.index')
+                            )            
+
+                        # 5. Sinon, on ajoute l'erreur au flash bag
+                        flask.flash(error)
+
+                    # On affiche le form si "GET"
+                    # ou si on a des erreurs à afficher
+                    return flask.render_template(
+                        'articles/edit.html',
+                        article=article
+                    )
+
+
+                # La route pour effacer un article
+                @blueprint.route('/&lt;int:id&gt;/delete', methods=['POST'])
+                @auth.login_required
+                def delete(id):
+                    get_article(id)
+                    db = get_db()
+                    db.execute(
+                        'DELETE FROM article WHERE id=?',
+                        (id,)
+                    )
+                    db.commit()
+
+                    # On révient à la liste
+                    return flask.redirect(
+                        flask.url_for('articles.index')
+                    )
+        
+                    </code></pre>
+            </section>
+
+
+            <section>
+            <h3>La liste des articles</h3>
+            <pre><code class='language-html'             data-trim data-noescape             data-line-numbers='1-2|4-12|14-16|18-24|25-33|36|39-43'>
+        
+        
+                &lt;!-- ./templates/articles/index.html --&gt;
+                {% extends 'base.html' %}
+
+                {% block header %}
+                  &lt;h1&gt;{% block title %}Articles{% endblock %}&lt;/h1&gt;
+                  {% if g.user %}
+                    &lt;a class="action"
+                    href="{{ url_for('articles.create') }}"&gt;
+                      Nouveau
+                    &lt;/a&gt;
+                  {% endif %}
+                {% endblock %}
+
+                {% block content %}
+                  {% for article in articles %}
+                    &lt;article class="article"&gt;
+                      &lt;header&gt;
+                        &lt;div&gt;
+                          &lt;h1&gt;{{ article['title'] }}&lt;/h1&gt;
+                          &lt;div class="about"&gt;
+                            par {{ article['username'] }},
+                            le {{article['created'].strftime('%Y-%m-%d')}}
+                          &lt;/div&gt;
+                        &lt;/div&gt;
+                        {% if g.user['id'] == article['author_id'] %}
+                          &lt;a class="action"
+                          href="{{
+                            url_for('articles.update',
+                            id=article['id'])
+                          }}"&gt;
+                            Modifier
+                          &lt;/a&gt;
+                        {% endif %}
+                      &lt;/header&gt;
+      
+                      &lt;p class="body"&gt;{{ article['body'] }}&lt;/p&gt;
+                    &lt;/article&gt;
+    
+                    {% if not loop.last %}
+                      &lt;hr&gt;
+                    {% endif %}
+                  {% endfor %}
+                {% endblock %}
+        
+                    </code></pre>
+            </section>
+
+
+            <section>
+            <h3>Le form de création</h3>
+            <pre><code class='language-html'             data-trim data-noescape             data-line-numbers='1-2|4-6|8-9|10-14|16-20|22|23-24'>
+        
+        
+                &lt;!-- ./templates/articles/create.html --&gt;
+                {% extends 'base.html' %}
+
+                {% block header %}
+                  &lt;h1&gt;{% block title %}Nouvel article{% endblock %}&lt;/h1&gt;
+                {% endblock %}
+
+                {% block content %}
+                  &lt;form method="post"&gt;
+                    &lt;label&gt;Titre
+                      &lt;input name="title"
+                      value="{{ request.form['title'] }}"
+                      required&gt;
+                    &lt;/label&gt;
+    
+                    &lt;label&gt;Contenu
+                      &lt;textarea name="body"&gt;
+                        {{ request.form['body'] }}
+                      &lt;/textarea&gt;
+                    &lt;/label&gt;
+    
+                    &lt;input type="submit" value="Save"&gt;
+                  &lt;/form&gt;
+                {% endblock %}
+        
+                    </code></pre>
+            </section>
+
+
+            <section>
+            <h3>La form de édition</h3>
+            <pre><code class='language-html'             data-trim data-noescape             data-line-numbers='1-2|4-8|10-11|12-18|20-27|29|34-38|40-41|42-43'>
+        
+        
+                &lt;!-- ./templates/articles/edit.html --&gt;
+                {% extends 'base.html' %}
+
+                {% block header %}
+                  &lt;h1&gt;{% block title %}
+                    Modifier "{{ article['title'] }}"
+                  {% endblock %}&lt;/h1&gt;
+                {% endblock %}
+
+                {% block content %}
+                  &lt;form method="post"&gt;
+                    &lt;label&gt;Titre
+                    &lt;input name="title"
+                      value="{{
+                        request.form['title']
+                        or article['title']
+                      }}" required&gt;
+                    &lt;/label&gt;
+
+                    &lt;label&gt;Contenu
+                      &lt;textarea name="body"&gt;
+                          {{
+                            request.form['body']
+                            or article['body']
+                          }}
+                        &lt;/textarea&gt;
+                    &lt;/label&gt;
+
+                    &lt;input type="submit" value="Save"&gt;
+                  &lt;/form&gt;
+  
+                  &lt;hr&gt;
+
+                  &lt;form action="{{
+                      url_for(
+                        'articles.delete',
+                        id=article['id'])
+                    }}" method="post"&gt;
+    
+                    &lt;input class="danger" type="submit" value="Delete"
+                    onclick="return confirm('Vous êtes sûr ?');"&gt;
+                  &lt;/form&gt;
+                {% endblock %}
+        
+                    </code></pre>
+            </section>
+
+
+            <section>
+                <p>C'est le tour des articles !</p>
+
+                <p><small>Les articles</small></p>
+                <ol>
+                    <li>Ajoutez les fonctions des views des articles</li>
+                    <li>Ajoutez les templates HTML pour les articles</li>
+                </ol>
+
+                <p><small><em><a href="#/10/9">Structure du projet</a></em></small></p>
             </section>
 
         </section>

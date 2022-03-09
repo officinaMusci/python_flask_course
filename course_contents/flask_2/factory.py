@@ -11,7 +11,7 @@ def create_app():
     app.config.from_mapping(
         SECRET_KEY='utilisée_pour_le_cryptage',
         DATABASE=os.path.join(
-            app.instance_path,
+            os.path.dirname(os.path.realpath(__file__)),
             'database',
             'project.sqlite'
         ) # Génère la path pour la BDD

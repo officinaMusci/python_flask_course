@@ -1,0 +1,44 @@
+
+<!-- ./templates/articles/edit.html -->
+{% extends 'base.html' %}
+
+{% block header %}
+  <h1>{% block title %}
+    Modifier "{{ article['title'] }}"
+  {% endblock %}</h1>
+{% endblock %}
+
+{% block content %}
+  <form method="post">
+    <label>Titre
+    <input name="title"
+      value="{{
+        request.form['title']
+        or article['title']
+      }}" required>
+    </label>
+
+    <label>Contenu
+      <textarea name="body">
+          {{
+            request.form['body']
+            or article['body']
+          }}
+        </textarea>
+    </label>
+
+    <input type="submit" value="Save">
+  </form>
+  
+  <hr>
+
+  <form action="{{
+      url_for(
+        'articles.delete',
+        id=article['id'])
+    }}" method="post">
+    
+    <input class="danger" type="submit" value="Delete"
+    onclick="return confirm('Vous êtes sûr ?');">
+  </form>
+{% endblock %}
