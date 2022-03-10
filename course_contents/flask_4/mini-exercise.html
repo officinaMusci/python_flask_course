@@ -1,0 +1,25 @@
+<p>... Aïe aïe aïe...
+<br><small>nous avons deux problèmes très typiques</small></p>
+
+<ul>
+    <li>Les routes ont trop de responsabilités</li>
+    <li>Certains morceaux de code se répètent</li>
+</ul>
+
+<p><small>Il faut résoudre avant d'avoir une <strong>machine de Goldberg !</strong>
+<br>Essayez de mettre toute la logique dans des fonctions réutilisables.
+<br>Les routes ne doivent contenir que des routes !
+<br>Vous devrez arriver à réorganiser le tout comme ça :</small></p>
+
+<pre>
+project/
+├── services/
+│   ├── auth.py (vérifier, chercher, encrypter, etc...)
+│   └── database/
+│       ├── db.py (chercher, modifier, effacer, etc...)
+│       └── schema.sql
+├── routes/
+│   ├── auth.py
+│   └── articles.py
+...
+</pre>

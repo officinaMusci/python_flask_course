@@ -698,7 +698,7 @@
                         # 3. On contrôle les data
                         error = None
                         if (
-                            user is None or not flask.check_password_hash(
+                            user is None or not security.check_password_hash(
                                 user['password'],
                                 password
                             )
@@ -1137,6 +1137,246 @@
                 </ol>
 
                 <p><small><em><a href="#/10/9">Structure du projet</a></em></small></p>
+            </section>
+
+        </section>
+
+
+        <section>
+
+            <section>
+
+                <p>Flask II</p>
+            </section>
+
+
+            <section>
+            <h3>Les JSON Web Tokens</h3>
+            <pre><code class='language-python'             data-trim data-noescape             data-line-numbers='1|5-17|21-27|30-35|38-40|42-45|47-52|54-65|67-75|77-82|85-89|90-95|97-105'>
+        
+        
+                # $ pip install flask-jwt-extended
+
+
+
+                # ./__init__.py
+                ...
+                import flask_jwt_extended as flask_jwt
+                ...
+                def create_app():
+                    ...
+                    app.config.from_mapping(
+                        ...
+                        JWT_SECRET_KEY='utilisée_pour_le_cryptage_jwt'
+                        ...
+                    )
+                    jwt = flask_jwt.JWTManager(app)
+                    ...
+
+
+
+                # ./routes/api.py 🆕
+                import flask
+                from werkzeug import security
+
+                import flask_jwt_extended as flask_jwt
+
+                from database.db import get_db
+
+
+                # On déclare le blueprint
+                blueprint = flask.Blueprint(
+                    'api',
+                    __name__,
+                    url_prefix='/api'
+                )
+
+
+                # Route pour le login
+                @blueprint.route('/login', methods=['POST'])
+                def login():
+
+                    # 1. On récupère les data
+                    request = flask.request.get_json()
+                    username = request['username']
+                    password = request['password']
+
+                    # 2. On ouvre la BDD et on cherche l'user
+                    db = get_db()
+                    user = db.execute(
+                        'SELECT * FROM user WHERE username = ?',
+                        (username,)
+                    ).fetchone()
+
+                    # 3. On contrôle les data
+                    # 3.a Identifiants non valides
+                    if (
+                        user is None or not flask.check_password_hash(
+                            user['password'],
+                            password
+                        )
+                    ):
+                        response = flask.jsonify({
+                            'error': 'Identifiants non valides'
+                        })
+                        code = 401
+    
+                    # 3.b Identifiants valides, on crée un JWT
+                    else:
+                        access_token = flask_jwt.create_access_token(
+                            identity=user['id']
+                        )
+                        response = flask.jsonify({
+                            'access_token': access_token
+                        })
+                        code = 200
+
+                    # 4. On envoi la réponse
+                    return flask.make_response(
+                        response,
+                        code,
+                        {'Content-Type': 'application/json'}
+                    )
+
+
+                # Exemple de route protégée
+                @blueprint.route('/protected')
+                @flask_jwt.jwt_required() # On protège la route, notre
+                def protected():          # requête devra avoir en header :
+                                          # {Authorization: "Bearer $JWT"}
+                    # 1. On récupère le user
+                    user_id = flask_jwt.get_jwt_identity()
+                    user = get_db().execute(
+                        'SELECT * FROM user WHERE id = ?',
+                        (user_id,)
+                    ).fetchone()
+    
+                    # 2. Pour démo, on retourne le username
+                    response = flask.jsonify({
+                        'logged_in_as': user['username']
+                    })
+                    return flask.make_response(
+                        response,
+                        200,
+                        {'Content-Type': 'application/json'}
+                    )
+
+
+        
+                    </code></pre>
+            </section>
+
+
+            <section>
+                <p>... Aïe aïe aïe...
+                <br><small>nous avons deux problèmes très typiques</small></p>
+
+                <ul>
+                    <li>Les routes ont trop de responsabilités</li>
+                    <li>Certains morceaux de code se répètent</li>
+                </ul>
+
+                <p><small>Il faut résoudre avant d'avoir une <strong>machine de Goldberg !</strong>
+                <br>Essayez de mettre toute la logique dans des fonctions réutilisables.
+                <br>Les routes ne doivent contenir que des routes !
+                <br>Vous devrez arriver à réorganiser le tout comme ça :</small></p>
+
+                <pre>
+                project/
+                ├── services/
+                │   ├── auth.py (vérifier, chercher, encrypter, etc...)
+                │   └── database/
+                │       ├── db.py (chercher, modifier, effacer, etc...)
+                │       └── schema.sql
+                ├── routes/
+                │   ├── auth.py
+                │   └── articles.py
+                ...
+                </pre>
+            </section>
+
+
+            <section>
+            <h3>Le fichier .env</h3>
+            <pre><code class='language-python'             data-trim data-noescape             data-line-numbers='1|5-9|13-16|18-27'>
+        
+        
+                # $ pip install python-dotenv
+
+
+
+                # ./.env 🆕 (à ajouter au .gitignore)
+
+                SECRET_KEY='utilisée_pour_le_cryptage'
+                JWT_SECRET_KEY='utilisée_pour_le_cryptage_jwt'
+                ENV='development'
+
+
+
+                # ./__init__.py
+                ...
+                import os
+                from dotenv import load_dotenv
+
+                def create_app():
+                    load_dotenv()
+                    ...
+                    app.config.from_mapping(
+                        ENV=os.getenv('ENV'),
+                        SECRET_KEY=os.getenv('SECRET_KEY'),
+                        JWT_SECRET_KEY=os.getenv('JWT_SECRET_KEY'),
+                        ...
+                    )
+                    ...
+        
+                    </code></pre>
+            </section>
+
+
+            <section>
+            <h3>Rendre l'app installable</h3>
+            <pre><code class='language-python'             data-trim data-noescape             data-line-numbers='1|5|8-19|23-29|33-37'>
+        
+        
+                # ./setup.py
+
+
+
+                from setuptools import find_packages, setup
+
+
+                setup(
+                    name='project',
+                    version='1.0.0',
+                    packages=find_packages(),
+                    include_package_data=True,
+                    zip_safe=False,
+                    install_requires=[
+                        'flask',
+                        'python-dotenv',
+                        'flask-jwt-extended'
+                    ],
+                )
+
+
+
+                # ./MANIFEST.in
+                # Ici on déclare les fichiers
+                # statiques à importer
+                include services/database/schema.sql
+                graft static
+                graft templates
+                global-exclude *.pyc
+
+
+
+                # On installe, global ou env
+                # $ pip install -e .
+
+                # Maintenant, flask run fonctionne
+                # partout dans la machine
+        
+                    </code></pre>
             </section>
 
         </section>

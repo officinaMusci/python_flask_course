@@ -265,7 +265,6 @@ if __name__ == '__main__':
         chapter_path="flask_3/"
     )
 
-    '''
     flask_4 = ContainingSegment(
         HtmlSegment("landing.html"),
 
@@ -277,6 +276,7 @@ if __name__ == '__main__':
         chapter_path="flask_4/"
     )
 
+    '''
     flask_5 = ContainingSegment(
         CodeSegment("emails.py", "Les emails de confirmation", "1|5-14|18-20|22-25|27-33|35-36|40-47|51-53|56-58|60-63|65-69|72-74|76-79|81-87|89-91|93-94|98-99|102-106|108-109|111-115|117-122|124-128|130-137|139-142|144-147|150-155|157-160|162-167|169-173|175-176|178-179|181-186"),
         CodeSegment("sql_alchemy.py", "Le ORM SQLAlchemy", "1|5-13|16-17|20-33|37-44|47-55|58-65|67-76|78-86|88-96|98-107"),
@@ -290,7 +290,7 @@ if __name__ == '__main__':
         flask_1,
         flask_2,
         flask_3,
-        #flask_4,
+        flask_4,
         #flask_5
     )
 
