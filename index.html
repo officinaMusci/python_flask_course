@@ -1381,6 +1381,348 @@
 
         </section>
 
+
+        <section>
+
+            <section>
+            <h3>Les emails de confirmation</h3>
+            <pre><code class='language-python'             data-trim data-noescape             data-line-numbers='1|5-14|18-20|22-25|27-33|35-36|40-47|51-53|56-58|60-63|65-69|72-74|76-79|81-87|89-91|93-94|98-99|102-106|108-109|111-115|117-122|124-128|130-137|139-142|144-147|150-155|157-160|162-167|169-173|175-176|178-179|181-186'>
+        
+        
+                # $ pip install Flask-Mail
+
+
+
+                # ./__init__.py
+                ...
+                def create_app():
+                    ...
+                    app.config.from_mapping(
+                        ...
+                        MAIL_DEFAULT_SENDER='gatekeeper@website.web'
+                        SECURITY_PASSWORD_SALT='utilisée_pour_le_cryptage_token'
+                        ...
+                    )
+
+
+
+                # ./services/email.py 🆕
+                import flask
+                import flask_mail
+
+                # On crée un helper pour envoyer les emails
+                def send_email(to, subject, body):
+                    app = flask.current_app
+                    mail = flask_mail.Mail(app)
+    
+                    # 1. On compose le message avec les args
+                    message = flask_mail.Message(
+                        subject,
+                        recipients=[to],
+                        html=body,
+                        sender=app.config['MAIL_DEFAULT_SENDER']
+                    )
+    
+                    # On envoie le message
+                    mail.send(message)
+
+
+
+                #./services/database/schema.sql
+                # On met à jour le schema SQL
+                ...
+                CREATE TABLE user (
+                  ...
+                  email TEXT UNIQUE NOT NULL,
+                  confirmed INTEGER(1) DEFAULT 0
+                );
+
+
+
+                #./services/auth.py
+                import flask
+                from itsdangerous import URLSafeTimedSerializer
+
+
+                # On crée un helper pour générer les tokens
+                def generate_confirmation_token(email):
+                    app = flask.current_app
+
+                    # 1. On initialise le serializer
+                    serializer = URLSafeTimedSerializer(
+                        app.config['SECRET_KEY']
+                    )
+    
+                    # 2. On encrypte l'email
+                    return serializer.dumps(
+                        email,
+                        salt=app.config['SECURITY_PASSWORD_SALT']
+                    )
+
+
+                # On crée un helper pour confirmer les tokens 
+                def confirm_token(token, expiration=3600):
+                    app = flask.current_app
+
+                    # 1. On initialise le serializer
+                    serializer = URLSafeTimedSerializer(
+                        app.config['SECRET_KEY']
+                    )
+    
+                    # 2. On essaye de décrypter
+                    try:
+                        email = serializer.loads(
+                            token,
+                            salt=app.config['SECURITY_PASSWORD_SALT'],
+                            max_age=expiration
+                        )
+    
+                    # 3.a On retourne False en cas de échec
+                    except:
+                        return False
+    
+                    # 3.b Si tout va bien, on retourne l'email
+                    return email
+
+
+
+                #./routes/auth.py
+                from services import email
+
+
+                # Route pour vérifier un token
+                @blueprint.route('/confirm/&lt;token&gt;')
+                @auth.login_required
+                def confirm_token(token):
+                    db = get_db()
+
+                    # 1. On essaye de décrypter
+                    email = auth.confirm_token(token)
+
+                    # 2.a En cas d'echéc
+                    if not email:
+                        flask.flash(
+                            'Le lien de confirmation est invalide ou a expiré'
+                        )
+
+                    # 2.b En cas de succés
+                    else:
+                        user = db.execute(
+                            'SELECT * FROM user WHERE email=?',
+                            (email,)
+                        ).fetchone()
+        
+                        # 3.a Si l'user est confirmé déjà
+                        if user.confirmed:
+                            flask.flash(
+                                'Compte déjà confirmé. Veuillez vous connecter.'
+                            )
+        
+                        # 3.b Tout va bien, on met à jour et on remercie
+                        else:
+                            db.execute(
+                                'UPDATE user SET confirmed=1'
+                                ' WHERE id=?',
+                                (user['id'],)
+                            )
+                            db.commit()
+            
+                            flask.flash(
+                                'You have confirmed your account. Thanks!',
+                                'success'
+                            )
+    
+                    # En tout cas, on redirige vers le login
+                    return flask.redirect(
+                        flask.url_for('auth.login')
+                    )
+
+
+                # On met à jour la route d'enregistrement
+                @blueprint.route('/register', methods=['GET', 'POST'])
+                def register():
+                    ...
+                    # Dans l'étape 4.
+                    else:
+                        # 1. On crée un token
+                        token = auth.generate_confirmation_token(
+                            email
+                        )
+
+                        # 2. On crée le URL de confirmation
+                        confirm_url = flask.url_for(
+                            'auth.confirm_email',
+                            token=token,
+                            _external=True
+                        )
+
+                        # 3. On crée un message
+                        email_body = f'''
+                            &lt;p&gt;Veuillez suivre ce lien pour activer votre compte :&lt;/p&gt;
+                            &lt;p&gt;&lt;a href="{confirm_url}"&gt;{confirm_url}&lt;/a&gt;&lt;/p&gt;
+                        '''
+
+                        # 4. On ajoute un objet
+                        subject = 'Veuillez confirmer votre email'
+
+                        # 5. On enoie l'email
+                        email.send_email(email, subject, email_body)
+
+                        # 6. On communique au front end
+                        flask.flash(
+                            'A confirmation email has been sent via email',
+                            'success'
+                        )
+                        ...
+        
+                    </code></pre>
+            </section>
+
+
+            <section>
+            <h3>Le ORM SQLAlchemy</h3>
+            <pre><code class='language-python'             data-trim data-noescape             data-line-numbers='1|5-13|16-17|20-33|37-44|47-55|58-65|67-76|78-86|88-96|98-107'>
+        
+        
+                # $ pip install sqlalchemy
+
+
+
+                # ./services/database/db.py
+                import os
+
+                from dotenv import load_dotenv
+                from sqlalchemy import create_engine
+                from sqlalchemy.orm import sessionmaker
+                from sqlalchemy.ext.declarative import declarative_base
+
+                load_dotenv()
+
+
+                # On déclare le type de DB
+                Base = declarative_base()
+
+
+                # On crée l'helper pour les sessions DB
+                def create_session(engine=None):
+                    engine = create_engine(
+                        engine
+                        or os.getenv('DB_ENGINE')
+                        # f"sqlite:///{db_path}"
+                    )
+    
+                    Base.metadata.create_all(engine)
+                    Base.metadata.bind = engine
+
+                    Session = sessionmaker(bind=engine)
+    
+                    return Session
+
+
+
+                #  ./classes/user
+                from dataclasses import dataclass
+                from sqlalchemy import Column as ORMColumn
+                from sqlalchemy import String as ORMString
+                from sqlalchemy import Integer as ORMInteger
+                from sqlalchemy import Boolean as ORMBoolean
+
+                from services.database import db
+
+
+                # On déclare le schema pour les utilisateurs
+                class UserRow(db.Base):
+                    __tablename__ = 'user'
+
+                    id = ORMColumn(ORMInteger, primary_key=True)
+                    username = ORMColumn(ORMString, nullable=False)
+                    password = ORMColumn(ORMString, nullable=False)
+                    email = ORMColumn(ORMString, nullable=False)
+                    confirmed = ORMColumn(ORMBoolean, default=False)
+
+
+                # On crée une dataclass pour les utilisateurs
+                @dataclass
+                class User:
+                    id:int
+                    username:str
+                    password:str
+                    email:str
+                    confirmed:bool
+
+                    # Méthode pour avoir un User depuis la DB
+                    @classmethod
+                    def from_row(cls, row:UserRow):
+                        return User(
+                            id=row.id,
+                            username=row.username,
+                            password=row.password,
+                            email=row.email,
+                            confirmed=row.confirmed
+                        )
+    
+                    # ... et pour l'avoir avec juste l'id
+                    @classmethod
+                    def from_row_id(cls, id:int):
+                        with db.create_session().begin() as db_session:
+                            user_row = db_session.query(UserRow).get(id)
+                            user = User.from_row(user_row)
+                            db_session.close()
+        
+                        return user
+    
+                    # Méthode pour convertir un User pour la DB
+                    def to_row(self) -&gt; UserRow:
+                        return UserRow(
+                            id=self.id,
+                            username=self.username,
+                            password=self.password,
+                            email=self.email,
+                            confirmed=self.confirmed
+                        )
+    
+                    # ... et pour l'enregistrer
+                    def store_row(self) -&gt; int:
+                        user_row = self.to_row()
+
+                        with db.create_session().begin() as db_session:
+                            db_session.add(user_row)
+                            db_session.flush()
+                            id = user_row.id
+        
+                        return id
+        
+                    </code></pre>
+            </section>
+
+
+            <section>
+                <p>Et ben, mainteant c'est à vous !</p>
+
+                <p><small>Vous pouvez vous lancer dans le wrappin' up de ce cours pour créer votre base de développement Flask.</small></p>
+
+                <p><small>Maintenant, comme promis, une liste de ressources pour votre décollage avec Flask :
+
+                    <br><a href="https://pythonhosted.org/Flask-Mail/">Flask Mail</a>
+                    <br><a href="https://flask-jwt-extended.readthedocs.io/en/stable/">Flask JWT extended</a>
+                    <br><a href="https://docs.sqlalchemy.org/14/orm/tutorial.html">SQLAlchemy</a>
+                    <br><a href="https://flask.palletsprojects.com/en/2.0.x/deploying/">Flask deploy</a></small></p>
+
+
+                <p><small>Pour des projets suuuuuuper complexes :
+
+                    <br><a href="https://python-telegram-bot.readthedocs.io/en/stable/">Python + Telegram</a>
+                    <br><a href="https://flask-socketio.readthedocs.io/en/latest/">Flask-SocketIO</a>
+                    <br><a href="https://docs.celeryproject.org/en/stable/index.html">Celery</a>
+                    <br><a href="https://flower.readthedocs.io/">Flower (Celery monitor)</a>
+                    <br><a href="https://github.com/miguelgrinberg/flask-celery-example">Celery + Flask</a>
+                    <br><a href="https://scrapy.org/">Scrapy</a>
+                    <br><a href="https://codeburst.io/running-scrapy-in-celery-tasks-d81e159921ea">Scrapy + Celery</a>
+                    <br><a href="https://github.com/clemfromspace/scrapy-selenium">Scrapy + Selenium</a></small></p>
+            </section>
+
+        </section>
+
     </div>
     	</div>
         <script src="dist/reveal.js"></script>
